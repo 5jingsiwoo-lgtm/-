@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>배구 터치 게임</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #f0f8ff;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #e0ffff;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+    #gameover {
+      position: absolute;
+      top: 40%;
+      width: 100%;
+      text-align: center;
+      font-size: 48px;
+      font-weight: bold;
+      color: red;
+      display: none;
+    }
+    #restart {
+      position: absolute;
+      top: 55%;
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      color: #333;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">0</div>
+  <div id="gameover">GAME OVER</div>
+  <div id="restart">다시 시작하세요</div>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const gameOverText = document.getElementById("gameover");
+    const restartText = document.getElementById("restart");
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const netHeight = 10;
+    const ballRadius = 20;
+    const groundOffset = 30;
+
+    let ball = { x: width / 2, y: height - groundOffset - ballRadius, vx: 0, vy: 0, color: "blue" };
+    let gravity = 0.4;
+    let score = 0;
+    let speedIncrease = 0;
+    let playing = true;
+
+    function resetGame() {
+      score = 0;
+      speedIncrease = 0;
+      playing = true;
+      ball.x = width / 2;
+      ball.y = height - groundOffset - ballRadius;
+      ball.vx = 0;
+      ball.vy = -8;
+      ball.color = "blue";
+      gameOverText.style.display = "none";
+      restartText.style.display = "none";
+      scoreDisplay.innerText = score;
+    }
+
+    function drawCourt() {
+      ctx.fillStyle = "#f5f5dc";
+      ctx.fillRect(0, height / 2, width, height / 2);
+      ctx.fillStyle = "#deb887";
+      ctx.fillRect(0, 0, width, height / 2);
+
+      ctx.fillStyle = "#444";
+      ctx.fillRect(0, height / 2 - netHeight / 2, width, netHeight);
+    }
+
+    function drawBall() {
+      // shadow
+      let shadowY = height - groundOffset;
+      let dist = shadowY - ball.y;
+      let shadowSize = Math.max(10, 50 - dist * 0.2);
+      ctx.fillStyle = "rgba(0,0,0," + Math.min(0.5, 1 - dist / 400) + ")";
+      ctx.beginPath();
+      ctx.ellipse(ball.x, shadowY, shadowSize, shadowSize / 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ball
+      ctx.fillStyle = ball.color;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function updateBall() {
+      if (!playing) return;
+
+      ball.vy += gravity;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      if (ball.y + ballRadius > height - groundOffset) {
+        // hit ground -> game over
+        ball.y = height - groundOffset - ballRadius;
+        ball.vy = 0;
+        ball.vx = 0;
+        playing = false;
+        ball.color = "red";
+        gameOverText.style.display = "block";
+        restartText.style.display = "block";
+      }
+
+      // AI side bounce
+      if (ball.y - ballRadius < groundOffset) {
+        ball.y = groundOffset + ballRadius;
+        ball.vy *= -1;
+        // AI always returns ball
+      }
+
+      // wall bounce
+      if (ball.x - ballRadius < 0 || ball.x + ballRadius > width) {
+        ball.vx *= -1;
+      }
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, width, height);
+      drawCourt();
+      drawBall();
+      updateBall();
+      requestAnimationFrame(gameLoop);
+    }
+
+    canvas.addEventListener("click", handleTap);
+    canvas.addEventListener("touchstart", handleTap);
+
+    function handleTap(e) {
+      if (!playing) {
+        resetGame();
+        return;
+      }
+      // Check if ball is in player's half
+      if (ball.y + ballRadius > height / 2) {
+        let dx = e.clientX ? e.clientX - ball.x : e.touches[0].clientX - ball.x;
+        let dy = (e.clientY ? e.clientY : e.touches[0].clientY) - ball.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < ballRadius * 2) {
+          ball.vy = -(8 + speedIncrease);
+          ball.vx = (Math.random() - 0.5) * 10;
+          score++;
+          scoreDisplay.innerText = score;
+          speedIncrease = Math.min(15, score * 0.2);
+        }
+      }
+    }
+
+    resetGame();
+    gameLoop();
+  </script>
+</body>
+</html>
